@@ -4,17 +4,17 @@ from PIL import Image
 import pytesseract
 import re
 import tabula
-
 from pathlib import Path
 
 def load_markdown(file_path):
+    # Read file with UTF-8 encoding
     return Path(file_path).read_text(encoding="utf-8")
 
 
 # Load and display README markdown (text only)
 with open("README.md", "r", encoding="utf-8") as file:
  markdown_text = file.read()
-st.markdown(markdown_text)
+st.markdown(load_markdown("README.md"))
 
 import streamlit as st
 from pathlib import Path
