@@ -7,8 +7,7 @@ import tabula
 from pathlib import Path
 
 def load_markdown(file_path):
-    # Read file with UTF-8 encoding
-    return Path(file_path).read_text(encoding="utf-8")
+    return Path(file_path).read_text(encoding="utf-8", errors="ignore")
 
 
 # Load and display README markdown (text only)
