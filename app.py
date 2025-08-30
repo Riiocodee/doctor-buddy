@@ -5,10 +5,15 @@ import pytesseract
 import re
 import tabula
 
+from pathlib import Path
+
+def load_markdown(file_path):
+    return Path(file_path).read_text(encoding="utf-8")
+
 
 # Load and display README markdown (text only)
-with open("README.md", "r") as file:
-    markdown_text = file.read()
+with open("README.md", "r", encoding="utf-8") as file:
+ markdown_text = file.read()
 st.markdown(markdown_text)
 
 import streamlit as st
