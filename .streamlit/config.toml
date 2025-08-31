@@ -11,5 +11,6 @@ serverAddress = "doctor-buddy.streamlit.app"
 serverPort = 8501
 
 [general]
-page_image = "https://raw.githubusercontent.com/Riiocodee/doctor-buddy/main/images-thumbnail.png.jpg"
+page_image = "https://raw.githubusercontent.com/Riiocodee/doctor-buddy/main/thumbnail.jpg"
+
 
