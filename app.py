@@ -8,6 +8,14 @@ from pathlib import Path
 
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
+st.markdown(
+    """
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" sizes="192x192" href="icon-192.png">
+    <link rel="icon" sizes="512x512" href="icon-512.png">
+    """,
+    unsafe_allow_html=True
+)
 
 # --- Paths ---
 BASE_DIR = Path(__file__).resolve().parent
