@@ -131,48 +131,30 @@ def registration_ui():
                 st.session_state["page"] = "main"
 
     
-# --- Unified File Parser ---
-def parse_uploaded_file(file):
+
+# --- OCR & File Parsing ---
+def extract_text(file):
     try:
-        if file.type == "application/pdf":
-            # Save PDF temporarily because tabula needs a file path
+        if file.type in ["image/jpeg", "image/png"]:
+            img = Image.open(file)
+            return pytesseract.image_to_string(img)
+        elif file.type == "application/pdf":
+            # save temp file for tabula
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
                 tmp_file.write(file.getbuffer())
                 tmp_path = tmp_file.name
 
             dfs = tabula.read_pdf(tmp_path, pages="all", multiple_tables=True)
-            os.remove(tmp_path)  # clean up
-
+            os.remove(tmp_path)
             if dfs:
-                return "\n".join([df.to_csv(index=False) for df in dfs])
-            else:
-                return "No tables detected in PDF."
-
-        elif file.type in ["image/jpeg", "image/png"]:
-            img = Image.open(file)
-            text = pytesseract.image_to_string(img)
-            return text if text.strip() else "No text detected in image."
-
+                return "\n".join([df.to_string(index=False) for df in dfs])
+            return ""
         elif file.type == "text/csv":
             df = pd.read_csv(file)
             return df.to_csv(index=False)
-
-        else:
-            return f"Unsupported file type: {file.type}"
-
     except Exception as e:
-        return f"Error parsing file: {e}"
-
-
-# --- Streamlit UI ---
-st.title("📄 Report Parser")
-
-uploaded_file = st.file_uploader("Upload a report (PDF, JPG, PNG, CSV)", type=["pdf", "jpg", "jpeg", "png", "csv"])
-
-if uploaded_file:
-    st.info(f"Processing `{uploaded_file.name}`...")
-    parsed_text = parse_uploaded_file(uploaded_file)
-    st.text_area("Extracted Content:", parsed_text, height=300)
+        return f"Failed to parse {file.name}: {e}"
+    return ""
 
 
 def parse_lab_values(text):
@@ -271,6 +253,7 @@ def main_app_ui():
     uploaded_files = st.file_uploader("Choose files", type=['pdf', 'png', 'jpg', 'jpeg', 'csv'], accept_multiple_files=True)
     extracted_data = {}
     if uploaded_files:
+        extracted_data = {}
         for file in uploaded_files:
             text = extract_text(file)
             data = parse_lab_values(text)
@@ -365,3 +348,4 @@ if st.session_state.page == "login" or not st.session_state.logged_in:
     registration_ui()
 elif st.session_state.page == "main":
     main_app_ui()
+
