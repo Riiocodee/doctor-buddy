@@ -11,7 +11,7 @@ serverAddress = "doctor-buddy.streamlit.app"
 serverPort = 8501
 
 [general]
-appThumbnail = "images/thumbnail.jpg"
+appThumbnail = "images-thumbnail.jpg"
 
 
 
