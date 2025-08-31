@@ -4,16 +4,12 @@ import json
 from PIL import Image
 import pytesseract
 import re
+import tabula
+import tempfile
+import os
 from pathlib import Path
 
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-
-
-uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
-
-if uploaded_file is not None:
-    text = pytesseract.image_to_string(uploaded_file)
-    st.text_area("Extracted Text", text)
 
 st.markdown(
     """
@@ -67,6 +63,8 @@ if "current_user" not in st.session_state:
     st.session_state.current_user = None
 if "current_user_email" not in st.session_state:
     st.session_state.current_user_email = None  # stores email/phone for lookup
+if "page" not in st.session_state:
+    st.session_state.page = "login"  # default page
 
 # --- Ensure user records ---
 def ensure_user_records(user_name):
@@ -88,7 +86,8 @@ def login_ui():
                 st.session_state.current_user_email = email_phone
                 ensure_user_records(st.session_state.current_user)
                 st.success(f"✅ Login successful! Welcome {st.session_state.current_user}")
-                st.experimental_rerun()
+                # Set a session state flag to refresh UI
+                st.session_state["page"] = "main"
             else:
                 st.error("❌ Invalid password")
         else:
@@ -129,27 +128,52 @@ def registration_ui():
                 st.session_state.current_user = new_name
                 st.session_state.current_user_email = new_email_phone
                 st.success(f"✅ Registered and logged in! Welcome {new_name}")
-                st.experimental_rerun()
+                st.session_state["page"] = "main"
 
     
-# --- OCR & file parsing ---
-def extract_text(file):
-    text = ""
+# --- Unified File Parser ---
+def parse_uploaded_file(file):
     try:
-        if file.type in ["image/jpeg", "image/png"]:
+        if file.type == "application/pdf":
+            # Save PDF temporarily because tabula needs a file path
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+                tmp_file.write(file.getbuffer())
+                tmp_path = tmp_file.name
+
+            dfs = tabula.read_pdf(tmp_path, pages="all", multiple_tables=True)
+            os.remove(tmp_path)  # clean up
+
+            if dfs:
+                return "\n".join([df.to_csv(index=False) for df in dfs])
+            else:
+                return "No tables detected in PDF."
+
+        elif file.type in ["image/jpeg", "image/png"]:
             img = Image.open(file)
             text = pytesseract.image_to_string(img)
-        elif file.type == "application/pdf":
-            import tabula
-            dfs = tabula.read_pdf(file, pages='all', multiple_tables=True)
-            for df in dfs:
-                text += df.to_csv(index=False) + "\n"
+            return text if text.strip() else "No text detected in image."
+
         elif file.type == "text/csv":
             df = pd.read_csv(file)
-            text += df.to_csv(index=False)
+            return df.to_csv(index=False)
+
+        else:
+            return f"Unsupported file type: {file.type}"
+
     except Exception as e:
-        st.warning(f"Failed to parse {file.name}: {e}")
-    return text
+        return f"Error parsing file: {e}"
+
+
+# --- Streamlit UI ---
+st.title("📄 Report Parser")
+
+uploaded_file = st.file_uploader("Upload a report (PDF, JPG, PNG, CSV)", type=["pdf", "jpg", "jpeg", "png", "csv"])
+
+if uploaded_file:
+    st.info(f"Processing `{uploaded_file.name}`...")
+    parsed_text = parse_uploaded_file(uploaded_file)
+    st.text_area("Extracted Content:", parsed_text, height=300)
+
 
 def parse_lab_values(text):
     lab_data = {}
@@ -214,10 +238,7 @@ def check_risks(glucose, bmi, systolic_bp, diastolic_bp, labs, age=25, sex="Male
 
 
 # --- Main App ---
-if not st.session_state.logged_in:
-    login_ui()
-    registration_ui()
-else:
+def main_app_ui():
     ensure_user_records(st.session_state.current_user)
     st.title("🩺 Doctor Buddy")
     st.write(f"👋 Welcome, {st.session_state.current_user}!")
@@ -337,3 +358,10 @@ else:
         st.session_state.current_user = None
         st.session_state.current_user_email = None
         st.experimental_rerun()
+
+# --- Page Routing ---
+if st.session_state.page == "login" or not st.session_state.logged_in:
+    login_ui()
+    registration_ui()
+elif st.session_state.page == "main":
+    main_app_ui()
