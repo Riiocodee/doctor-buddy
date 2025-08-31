@@ -1,0 +1,12 @@
+[server]
+headless = true
+
+[theme]
+primaryColor = "#4CAF50"
+
+[browser]
+serverAddress = "doctor-buddy.streamlit.app"
+serverPort = 8501
+
+[general]
+appThumbnail = "images/thumbnail.png"
