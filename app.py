@@ -12,8 +12,45 @@ import pytesseract
 import re
 import tempfile
 from pathlib import Path
+from pdf2image import convert_from_path
 
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+
+def extract_text_from_pdf(pdf_path):
+    """
+    Try extracting tables with Tabula first.
+    If no tables found, fallback to OCR using pytesseract.
+    """
+    text = ""
+
+    try:
+        # Try Tabula (text-based PDF)
+        dfs = tabula.read_pdf(pdf_path, pages="all", multiple_tables=True, lattice=True)
+        if dfs and any(not df.empty for df in dfs):
+            for df in dfs:
+                text += df.to_csv(index=False) + "\n"
+        else:
+            print("⚠️ No tables found via Tabula, trying OCR...")
+            raise ValueError("No tables detected")
+    except Exception as e:
+        # Fallback to OCR (image-based PDF)
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+                tmp_file.write(open(pdf_path, "rb").read())
+                tmp_path = tmp_file.name
+
+            # Convert each PDF page to image
+            pages = convert_from_path(tmp_path)
+            for page in pages:
+                text += pytesseract.image_to_string(page, config="--psm 6") + "\n"
+
+            os.remove(tmp_path)
+        except Exception as ocr_e:
+            print(f"❌ OCR failed: {ocr_e}")
+
+    return text
+
 
 # --- Paths ---
 BASE_DIR = Path(__file__).resolve().parent
@@ -120,23 +157,27 @@ def registration_ui():
                 st.success(f"✅ Registered and logged in! Welcome {new_name}")
                 st.session_state["page"] = "main"
 
-# --- Unified File Parser + Lab Extraction ---
 def extract_text(file):
+    """
+    Handles uploaded files: PDF, images, or CSV.
+    PDF: Try Tabula first, then OCR fallback.
+    """
     text = ""
     try:
         if file.type in ["image/jpeg", "image/png"]:
             img = Image.open(file)
             text = pytesseract.image_to_string(img, config="--psm 6")
         elif file.type == "application/pdf":
+            # Save uploaded PDF to temp
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
                 tmp_file.write(file.getbuffer())
                 tmp_path = tmp_file.name
-            dfs = tabula.read_pdf(tmp_path, pages="all", multiple_tables=True)
+
+            # Extract text using new function
+            text = extract_text_from_pdf(tmp_path)
             os.remove(tmp_path)
-            if dfs:
-                for df in dfs:
-                    text += df.to_csv(index=False) + "\n"
         elif file.type == "text/csv":
+            import pandas as pd
             df = pd.read_csv(file)
             text += df.to_csv(index=False)
     except Exception as e:
@@ -197,7 +238,7 @@ def check_risks(glucose, hb, bmi, systolic_bp, diastolic_bp, labs, age=25, sex="
     bmi_cat, bmi_adv = bmi_risk(bmi, age, sex)
     risk.append(bmi_cat); advice_list.append(bmi_adv)
     if systolic_bp >= 140 or diastolic_bp >= 90: risk.append("High BP"); doctors.add("Cardiologist")
-   
+    
     # Thyroid / TSH
     if labs.get("TSH", 0) > 5.0:
         risk.append("High TSH")
@@ -216,11 +257,12 @@ def check_risks(glucose, hb, bmi, systolic_bp, diastolic_bp, labs, age=25, sex="
 
 
     # Hemoglobin check based on sex
-    hb = labs.get("Hemoglobin", hb)
+    hb = labs.get("Hemoglobin", hb)  # Use extracted value if available, else use passed hb
+
     if hb is not None:
         if sex.lower() == "male" and hb < 13.5:
             risk.append("Low Hemoglobin")
-            advice_list.append("Iron-rich diet & check for anemia .")
+            advice_list.append("Iron-rich diet & check for anemia. ")
             doctors.add("Hematologist")
         elif sex.lower() == "female" and hb < 12.0:
             risk.append("Low Hemoglobin")
@@ -245,6 +287,7 @@ def main_app_ui():
        height_cm = float(latest_info.get("height_cm", 170.0))
     else:
        age, sex, weight, height_cm = 25, "Male", 70.0, 170.0
+
 
     st.write(f"**Age:** {age} | **Sex:** {sex} | **Weight:** {weight} kg | **Height:** {height_cm} cm")
 
@@ -277,7 +320,12 @@ def main_app_ui():
             hemoglobin = extracted_data.get("Hemoglobin", hemoglobin)
             systolic_bp = extracted_data.get("Systolic_BP", systolic_bp)
             diastolic_bp = extracted_data.get("Diastolic_BP", diastolic_bp)
-
+            
+            extracted_data["Glucose"] = glucose
+            extracted_data["Hemoglobin"] = hemoglobin
+            extracted_data["Systolic_BP"] = systolic_bp
+            extracted_data["Diastolic_BP"] = diastolic_bp
+   
     bmi = round(weight / ((height_cm / 100) ** 2), 2)
     st.write(f"**BMI:** {bmi}")
 
@@ -298,6 +346,7 @@ def main_app_ui():
             age=age,
             sex=sex
         )
+
 
         st.subheader("Results Summary")
         st.write(f"**Overall Health:** {overall_health}")
@@ -352,11 +401,3 @@ if st.session_state.page == "login" or not st.session_state.logged_in:
     registration_ui()
 elif st.session_state.page == "main":
     main_app_ui()
-
-
-
-
-
-
-
-
