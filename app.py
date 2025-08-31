@@ -11,15 +11,6 @@ from pathlib import Path
 
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
-st.markdown(
-    """
-    <link rel="manifest" href="manifest.json">
-    <link rel="icon" sizes="192x192" href="icon-192.png">
-    <link rel="icon" sizes="512x512" href="icon-512.png">
-    """,
-    unsafe_allow_html=True
-)
-
 # --- Paths ---
 BASE_DIR = Path(__file__).resolve().parent
 user_file = BASE_DIR / "users.json"
@@ -48,7 +39,7 @@ patient_records = load_json(data_file, {})
 # --- Normalize old users ---
 for k, v in list(users.items()):
     if isinstance(v, str):
-        users[k] = {"name": k, "password": v}  # fallback: old users
+        users[k] = {"name": k, "password": v}
     elif isinstance(v, dict):
         if "name" not in v or not v["name"]:
             users[k]["name"] = k
@@ -62,9 +53,9 @@ if "logged_in" not in st.session_state:
 if "current_user" not in st.session_state:
     st.session_state.current_user = None
 if "current_user_email" not in st.session_state:
-    st.session_state.current_user_email = None  # stores email/phone for lookup
+    st.session_state.current_user_email = None
 if "page" not in st.session_state:
-    st.session_state.page = "login"  # default page
+    st.session_state.page = "login"
 
 # --- Ensure user records ---
 def ensure_user_records(user_name):
@@ -86,7 +77,6 @@ def login_ui():
                 st.session_state.current_user_email = email_phone
                 ensure_user_records(st.session_state.current_user)
                 st.success(f"✅ Login successful! Welcome {st.session_state.current_user}")
-                # Set a session state flag to refresh UI
                 st.session_state["page"] = "main"
             else:
                 st.error("❌ Invalid password")
@@ -111,11 +101,8 @@ def registration_ui():
             if new_email_phone in users:
                 st.warning("⚠️ User already exists. Try logging in.")
             else:
-                # Save credentials
                 users[new_email_phone] = {"name": new_name, "password": new_password}
                 save_json(user_file, users)
-
-                # Save patient info
                 patient_records[new_name] = [{
                     "age": new_age,
                     "sex": new_sex,
@@ -123,56 +110,37 @@ def registration_ui():
                     "height_cm": new_height
                 }]
                 save_json(data_file, patient_records)
-
                 st.session_state.logged_in = True
                 st.session_state.current_user = new_name
                 st.session_state.current_user_email = new_email_phone
                 st.success(f"✅ Registered and logged in! Welcome {new_name}")
                 st.session_state["page"] = "main"
 
-    
-
 # --- Unified File Parser + Lab Extraction ---
 def extract_text(file):
-    """Extract raw text from PDF, CSV, or image."""
     text = ""
     try:
         if file.type in ["image/jpeg", "image/png"]:
             img = Image.open(file)
-            # OCR with Tesseract
             text = pytesseract.image_to_string(img, config="--psm 6")
-        
         elif file.type == "application/pdf":
-            # Save temp file for Tabula
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
                 tmp_file.write(file.getbuffer())
                 tmp_path = tmp_file.name
-
-            # Read all tables from PDF
             dfs = tabula.read_pdf(tmp_path, pages="all", multiple_tables=True)
             os.remove(tmp_path)
-            
             if dfs:
-                # Combine all tables into text
                 for df in dfs:
                     text += df.to_csv(index=False) + "\n"
-            else:
-                text += ""  # fallback
-
         elif file.type == "text/csv":
             df = pd.read_csv(file)
             text += df.to_csv(index=False)
-            
     except Exception as e:
         st.warning(f"Failed to parse {file.name}: {e}")
-    
     return text
 
 def parse_lab_values(text):
-    """Extract lab values from raw text using regex."""
     lab_data = {}
-
-    # Flexible patterns for common lab names
     patterns = {
         "Glucose": r"(?:Glucose|GLU)\s*[:=]?\s*([0-9.]+)",
         "Hemoglobin": r"(?:Hemoglobin|Hb|H B)\s*[:=]?\s*([0-9.]+)",
@@ -184,8 +152,6 @@ def parse_lab_values(text):
         "Creatinine": r"(?:Creatinine|CREA)\s*[:=]?\s*([0-9.]+)",
         "Urea": r"(?:Urea|BUN)\s*[:=]?\s*([0-9.]+)"
     }
-
-    # Iterate over patterns and extract numbers
     for key, pattern in patterns.items():
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
@@ -193,31 +159,30 @@ def parse_lab_values(text):
                 lab_data[key] = float(match.group(1))
             except ValueError:
                 continue
-
     return lab_data
 
 # --- Risk checker ---
 def bmi_risk(bmi, age, sex):
-        advice = ""
-        if age < 18:
-            risk = "Check BMI percentile for age & sex"
-            advice = "Consult pediatrician for proper growth assessment."
+    advice = ""
+    if age < 18:
+        risk = "Check BMI percentile for age & sex"
+        advice = "Consult pediatrician for proper growth assessment."
+    else:
+        if bmi < 18.5:
+            risk = "Underweight"
+            advice = "Increase calorie intake & balanced diet."
+        elif 18.5 <= bmi < 25:
+            risk = "Normal weight"
+            advice = "Maintain healthy lifestyle."
+        elif 25 <= bmi < 30:
+            risk = "Overweight"
+            advice = "Increase physical activity and monitor diet."
         else:
-            if bmi < 18.5:
-                risk = "Underweight"
-                advice = "Increase calorie intake & balanced diet."
-            elif 18.5 <= bmi < 25:
-                risk = "Normal weight"
-                advice = "Maintain healthy lifestyle."
-            elif 25 <= bmi < 30:
-                risk = "Overweight"
-                advice = "Increase physical activity and monitor diet."
-            else:
-                risk = "Obese"
-                advice = "Consult doctor/nutritionist for weight management."
-        if sex.lower() == "female" and bmi >= 25:
-            advice += " (Women have slightly higher cardiovascular risk at lower BMI.)"
-        return risk, advice
+            risk = "Obese"
+            advice = "Consult doctor/nutritionist for weight management."
+    if sex.lower() == "female" and bmi >= 25:
+        advice += " (Women have slightly higher cardiovascular risk at lower BMI.)"
+    return risk, advice
 
 def check_risks(glucose, bmi, systolic_bp, diastolic_bp, labs, age=25, sex="Male"):
     risk = []
@@ -228,15 +193,12 @@ def check_risks(glucose, bmi, systolic_bp, diastolic_bp, labs, age=25, sex="Male
     bmi_cat, bmi_adv = bmi_risk(bmi, age, sex)
     risk.append(bmi_cat); advice_list.append(bmi_adv)
     if systolic_bp >= 140 or diastolic_bp >= 90: risk.append("High BP"); doctors.add("Cardiologist")
-    
-    # Additional lab alerts
     if labs.get("TSH", 0) > 5.0: risk.append("High TSH"); doctors.add("Endocrinologist")
-    if labs.get("ALT", 0) > 45 or labs.get("AST",0) > 40: risk.append("Liver Enzyme High"); doctors.add("Hepatologist")
+    if labs.get("ALT", 0) > 45 or labs.get("AST", 0) > 40: risk.append("Liver Enzyme High"); doctors.add("Hepatologist")
     if labs.get("Creatinine",0) > 1.3 or labs.get("Urea",0) > 50: risk.append("Kidney function abnormal"); doctors.add("Nephrologist")
-    
+
     overall_health = "Excellent" if not risk else "Good Health"
     return risk, doctors, advice_list, overall_health
-
 
 # --- Main App ---
 def main_app_ui():
@@ -244,7 +206,6 @@ def main_app_ui():
     st.title("🩺 Doctor Buddy")
     st.write(f"👋 Welcome, {st.session_state.current_user}!")
 
-    # --- Load user info ---
     user_records = patient_records.get(st.session_state.current_user, [])
     if user_records:
         latest_info = user_records[0]
@@ -255,66 +216,41 @@ def main_app_ui():
     else:
         age, sex, weight, height_cm = 25, "Male", 70.0, 170.0
 
-    # --- Show stored info ---
     st.write(f"**Age:** {age} | **Sex:** {sex} | **Weight:** {weight} kg | **Height:** {height_cm} cm")
 
-    # Manual entry
     glucose = st.number_input("Glucose (mg/dL)", value=90.0)
     systolic_bp = st.number_input("Systolic BP (mmHg)", value=120)
     diastolic_bp = st.number_input("Diastolic BP (mmHg)", value=80)
     hemoglobin = st.number_input("Hemoglobin (g/dL)", value=14.0)
     weight = st.number_input("Weight (kg)", value=weight)
     height_cm = st.number_input("Height (cm)", value=height_cm)
-    
-# --- File Upload ---
-st.subheader("📄 Upload Lab Reports / CSV / PDF / Images")
-uploaded_files = st.file_uploader(
-    "Choose files", type=['pdf', 'png', 'jpg', 'jpeg', 'csv'], accept_multiple_files=True
-)
 
-if uploaded_files:
-    extracted_data = {}  # store all lab values from uploaded files
+    # --- File Upload ---
+    st.subheader("📄 Upload Lab Reports / CSV / PDF / Images")
+    uploaded_files = st.file_uploader(
+        "Choose files", type=['pdf', 'png', 'jpg', 'jpeg', 'csv'], accept_multiple_files=True
+    )
 
-    for file in uploaded_files:
-        text = extract_text(file)        # <-- extract raw text from the file
-        data = parse_lab_values(text)    # <-- parse lab values from text
-        extracted_data.update(data)      # <-- accumulate all lab values
+    extracted_data = {}
+    if uploaded_files:
+        for file in uploaded_files:
+            raw_text = extract_text(file)
+            lab_values = parse_lab_values(raw_text)
+            extracted_data.update(lab_values)
 
-    # --- Display extracted lab values ---
-    if extracted_data:
-        st.subheader("📄 Extracted Lab Values")
-        df = pd.DataFrame(list(extracted_data.items()), columns=["Lab Test", "Value"])
-        st.dataframe(df)
-    else:
-        st.info("No lab values extracted from the uploaded files.")
-       
-        # Override manual entries if extracted from uploaded files
-        glucose = extracted_data.get("Glucose", glucose)
-        hemoglobin = extracted_data.get("Hemoglobin", hemoglobin)
-        systolic_bp = extracted_data.get("Systolic_BP", systolic_bp)
-        diastolic_bp = extracted_data.get("Diastolic_BP", diastolic_bp)
+        if extracted_data:
+            st.subheader("📄 Extracted Lab Values")
+            df = pd.DataFrame(list(extracted_data.items()), columns=["Lab Test", "Value"])
+            st.dataframe(df)
 
-       # Optional: extract additional labs for display or use in further analysis
-        tsh = extracted_data.get("TSH", None)
-        alt = extracted_data.get("ALT", None)
-        ast = extracted_data.get("AST", None)
-        creatinine = extracted_data.get("Creatinine", None)
-        urea = extracted_data.get("Urea", None)
+            glucose = extracted_data.get("Glucose", glucose)
+            hemoglobin = extracted_data.get("Hemoglobin", hemoglobin)
+            systolic_bp = extracted_data.get("Systolic_BP", systolic_bp)
+            diastolic_bp = extracted_data.get("Diastolic_BP", diastolic_bp)
 
-    '''  # Display all extracted labs neatly
-    st.subheader("📄 Extracted Lab Values")
-    if extracted_data:
-      lab_df = pd.DataFrame(list(extracted_data.items()), columns=["Lab Test", "Value"])
-      st.dataframe(lab_df)
-    else:
-      st.info("No lab values extracted yet.")'''
-
-    # --- Calculate BMI ---
     bmi = round(weight / ((height_cm / 100) ** 2), 2)
     st.write(f"**BMI:** {bmi}")
 
-    
-    # Risk Check
     if st.button("Check Risk"):
         risk, doctors, advice, overall_health = check_risks(glucose, bmi, systolic_bp, diastolic_bp, extracted_data, age, sex)
 
@@ -323,7 +259,7 @@ if uploaded_files:
         if risk: st.write("Risks:", risk)
         if doctors: st.write("See specialists:", ", ".join(doctors))
         if advice: st.write("Advice:", advice)
- # Save record
+
         record = {
             "age": age,
             "sex": sex,
@@ -334,7 +270,6 @@ if uploaded_files:
             "systolic_bp": systolic_bp,
             "diastolic_bp": diastolic_bp,
             "hemoglobin": hemoglobin,
-            
             "labs": extracted_data,
             "overall_health": overall_health,
             "risk": risk
@@ -342,8 +277,7 @@ if uploaded_files:
         patient_records[st.session_state.current_user].append(record)
         save_json(data_file, patient_records)
 
-    # Past records
-    past_records = patient_records[st.session_state.current_user][:]
+    past_records = patient_records.get(st.session_state.current_user, [])
     if past_records:
         st.subheader("📋 Your Past Records")
         df = pd.DataFrame(past_records)
@@ -351,7 +285,6 @@ if uploaded_files:
     else:
         st.info("No past records found.")
 
-    # Health tips
     st.subheader("💡 Healthy Lifestyle Tips")
     st.markdown("""
     - 🥗 Eat a balanced diet with fruits & vegetables  
@@ -362,7 +295,6 @@ if uploaded_files:
     - 🧘 Manage stress with meditation/yoga
     """)
 
-    # Logout
     if st.button("Logout"):
         st.session_state.logged_in = False
         st.session_state.current_user = None
