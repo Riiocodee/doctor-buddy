@@ -216,11 +216,11 @@ def check_risks(glucose, hb, bmi, systolic_bp, diastolic_bp, labs, age=25, sex="
     if hb is not None:
         if sex.lower() == "male" and hb < 13.5:
             risk.append("Low Hemoglobin")
-            advice_list.append("Iron-rich diet & check for anemia (Male)")
+            advice_list.append("Iron-rich diet & check for anemia .")
             doctors.add("Hematologist")
         elif sex.lower() == "female" and hb < 12.0:
             risk.append("Low Hemoglobin")
-            advice_list.append("Iron-rich diet & check for anemia (Female)")
+            advice_list.append("Iron-rich diet & check for anemia .")
             doctors.add("Hematologist")
 
     overall_health = "Excellent" if not risk else "Good Health"
@@ -348,6 +348,7 @@ if st.session_state.page == "login" or not st.session_state.logged_in:
     registration_ui()
 elif st.session_state.page == "main":
     main_app_ui()
+
 
 
 
