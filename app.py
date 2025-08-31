@@ -212,7 +212,7 @@ def check_risks(glucose, hb, bmi, systolic_bp, diastolic_bp, labs, age=25, sex="
 
 
     # Hemoglobin check based on sex
-    hb = labs.get("Hemoglobin", None)
+    hb = labs.get("Hemoglobin", hb)
     if hb is not None:
         if sex.lower() == "male" and hb < 13.5:
             risk.append("Low Hemoglobin")
@@ -348,6 +348,7 @@ if st.session_state.page == "login" or not st.session_state.logged_in:
     registration_ui()
 elif st.session_state.page == "main":
     main_app_ui()
+
 
 
 
