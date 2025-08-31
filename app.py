@@ -193,10 +193,7 @@ def check_risks(glucose, bmi, systolic_bp, diastolic_bp, labs, age=25, sex="Male
     bmi_cat, bmi_adv = bmi_risk(bmi, age, sex)
     risk.append(bmi_cat); advice_list.append(bmi_adv)
     if systolic_bp >= 140 or diastolic_bp >= 90: risk.append("High BP"); doctors.add("Cardiologist")
-    if labs.get("TSH", 0) > 5.0: risk.append("High TSH"); doctors.add("Endocrinologist")
-    if labs.get("ALT", 0) > 45 or labs.get("AST", 0) > 40: risk.append("Liver Enzyme High"); doctors.add("Hepatologist")
-    if labs.get("Creatinine",0) > 1.3 or labs.get("Urea",0) > 50: risk.append("Kidney function abnormal"); doctors.add("Nephrologist")
-    
+   
     # Thyroid / TSH
     if labs.get("TSH", 0) > 5.0:
         risk.append("High TSH")
@@ -336,3 +333,4 @@ if st.session_state.page == "login" or not st.session_state.logged_in:
     registration_ui()
 elif st.session_state.page == "main":
     main_app_ui()
+
