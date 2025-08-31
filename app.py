@@ -196,14 +196,6 @@ def parse_lab_values(text):
 
     return lab_data
 
-'''# --- Example usage in Streamlit ---
-    uploaded_files = st.file_uploader(
-    "Upload lab reports (PDF, JPG, PNG, CSV)", 
-    type=["pdf", "jpg", "jpeg", "png", "csv"], 
-    accept_multiple_files=True
-)'''
-
-
 # --- Risk checker ---
 def bmi_risk(bmi, age, sex):
         advice = ""
