@@ -1,10 +1,14 @@
+import os
+
+# --- Set Java path for Tabula ---
+os.environ['JAVA_HOME'] = r"C:\Program Files\Java\jdk-23.0.2"  # <-- your Java folder
+os.environ['PATH'] += r";C:\Program Files\Java\jdk-23.0.2\bin"  # <-- bin folder
 import streamlit as st
 import pandas as pd
 import json
 from PIL import Image
 import pytesseract
 import re
-import tabula
 import tempfile
 import os
 from pathlib import Path
@@ -307,3 +311,4 @@ if st.session_state.page == "login" or not st.session_state.logged_in:
     registration_ui()
 elif st.session_state.page == "main":
     main_app_ui()
+
