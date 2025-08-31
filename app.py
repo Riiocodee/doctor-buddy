@@ -278,6 +278,12 @@ def main_app_ui():
     st.write(f"**BMI:** {bmi}")
 
     if st.button("Check Risk"):
+        glucose = float(glucose)
+        hemoglobin = float(hemoglobin)
+        systolic_bp = float(systolic_bp)
+        diastolic_bp = float(diastolic_bp)
+        bmi = float(bmi)
+
         risk, doctors, advice, overall_health = check_risks(glucose, bmi, systolic_bp, diastolic_bp, extracted_data, age, sex)
 
         st.subheader("Results Summary")
@@ -333,6 +339,7 @@ if st.session_state.page == "login" or not st.session_state.logged_in:
     registration_ui()
 elif st.session_state.page == "main":
     main_app_ui()
+
 
 
 
