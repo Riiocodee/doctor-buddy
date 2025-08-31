@@ -12,7 +12,7 @@ import pytesseract
 import re
 import tempfile
 from pathlib import Path
-from pdf2image import convert_from_path
+
 
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
@@ -41,7 +41,9 @@ def extract_text_from_pdf(pdf_path):
                 tmp_path = tmp_file.name
 
             # Convert each PDF page to image
-            pages = convert_from_path(tmp_path)
+            from pdf2image import convert_from_path
+            pages = convert_from_path(tmp_path, poppler_path=r"C:\poppler\Library\bin")  # <- here
+            
             for page in pages:
                 text += pytesseract.image_to_string(page, config="--psm 6") + "\n"
 
@@ -401,3 +403,4 @@ if st.session_state.page == "login" or not st.session_state.logged_in:
     registration_ui()
 elif st.session_state.page == "main":
     main_app_ui()
+
