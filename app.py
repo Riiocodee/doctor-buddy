@@ -234,13 +234,13 @@ def main_app_ui():
 
     user_records = patient_records.get(st.session_state.current_user, [])
     if user_records:
-        latest_info = user_records[0]
-        age = latest_info.get("age", 25)
-        sex = latest_info.get("sex", "Male")
-        weight = latest_info.get("weight", 70.0)
-        height_cm = latest_info.get("height_cm", 170.0)
+       latest_info = user_records[0]
+       age = int(latest_info.get("age", 25))
+       sex = latest_info.get("sex", "Male")
+       weight = float(latest_info.get("weight", 70.0))
+       height_cm = float(latest_info.get("height_cm", 170.0))
     else:
-        age, sex, weight, height_cm = 25, "Male", 70.0, 170.0
+       age, sex, weight, height_cm = 25, "Male", 70.0, 170.0
 
     st.write(f"**Age:** {age} | **Sex:** {sex} | **Weight:** {weight} kg | **Height:** {height_cm} cm")
 
@@ -333,5 +333,6 @@ if st.session_state.page == "login" or not st.session_state.logged_in:
     registration_ui()
 elif st.session_state.page == "main":
     main_app_ui()
+
 
 
