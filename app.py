@@ -1,4 +1,8 @@
 import os
+
+os.environ["JAVA_HOME"] = r"C:\Program Files\Java\jdk-23"
+os.environ["PATH"] = os.environ["JAVA_HOME"] + r"\bin;" + os.environ["PATH"]
+
 import tabula
 import streamlit as st
 import pandas as pd
@@ -348,6 +352,7 @@ if st.session_state.page == "login" or not st.session_state.logged_in:
     registration_ui()
 elif st.session_state.page == "main":
     main_app_ui()
+
 
 
 
