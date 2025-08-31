@@ -22,11 +22,16 @@
   - Blood Pressure (Systolic/Diastolic)  
   - Hemoglobin (g/dL)  
   - Height & Weight → Automatic BMI calculation  
-- 🧠 **Risk Analysis** with recommendations  
-- 📝 Stores **past records** for each user  
+- 📄 **Lab Report Upload**:  
+  - Supports CSV, PDF, and Image files (JPG/PNG)  
+  - Automatic extraction of lab values (Glucose, Hemoglobin, TSH, ALT, AST, Creatinine, Urea)  
+  - Overrides manual input if data is detected  
+- 🧠 **Risk Analysis** with personalized recommendations  
+  - Blood sugar, BMI, blood pressure  
+  - Liver, kidney, thyroid lab alerts  
+- 📝 Stores **past records** for each user and displays history  
 - 💡 Healthy lifestyle tips for better living  
 - 🌍 Runs on any device (once deployed online)  
-
 ---
 
 ## 🚀 Getting Started  
@@ -78,13 +83,12 @@ https://Doctor_Buddy.streamlit.app
 
 ### 🛠️ Tech Stack
 
--Python 3.9+
-
--Streamlit (UI framework)
-
--Pandas (data handling)
-
--JSON (local storage)
+1. Python 3.9+
+2. Streamlit (UI framework)
+3. Pandas (data handling)
+4. JSON (local storage)
+5. Pillow & pytesseract (OCR for lab reports)
+6. Tabula-py (PDF table extraction)
 
 ---
 
