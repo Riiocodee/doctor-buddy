@@ -8,6 +8,13 @@ from pathlib import Path
 
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
+
+uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
+
+if uploaded_file is not None:
+    text = pytesseract.image_to_string(uploaded_file)
+    st.text_area("Extracted Text", text)
+
 st.markdown(
     """
     <link rel="manifest" href="manifest.json">
