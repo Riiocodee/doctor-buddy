@@ -4,6 +4,7 @@ import os
 java_path = r"C:\Program Files\Java\jdk-23.0.2\bin"  # adjust if your path is different
 os.environ["JAVA_HOME"] = java_path
 os.environ["PATH"] = java_path + os.pathsep + os.environ["PATH"]
+import tabula
 import streamlit as st
 import pandas as pd
 import json
@@ -11,7 +12,6 @@ from PIL import Image
 import pytesseract
 import re
 import tempfile
-import tabula
 from pathlib import Path
 
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
@@ -312,6 +312,7 @@ if st.session_state.page == "login" or not st.session_state.logged_in:
     registration_ui()
 elif st.session_state.page == "main":
     main_app_ui()
+
 
 
 
