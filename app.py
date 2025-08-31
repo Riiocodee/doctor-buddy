@@ -184,7 +184,7 @@ def bmi_risk(bmi, age, sex):
         advice += " (Women have slightly higher cardiovascular risk at lower BMI.)"
     return risk, advice
 
-def check_risks(glucose, bmi, systolic_bp, diastolic_bp, labs, age=25, sex="Male"):
+def check_risks(glucose, hb, bmi, systolic_bp, diastolic_bp, labs, age=25, sex="Male"):
     risk = []
     doctors = set()
     advice_list = []
@@ -333,4 +333,5 @@ if st.session_state.page == "login" or not st.session_state.logged_in:
     registration_ui()
 elif st.session_state.page == "main":
     main_app_ui()
+
 
