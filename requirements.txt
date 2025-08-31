@@ -4,6 +4,5 @@ Pillow
 pytesseract
 tabula-py
 regex
-json
-Path
-ploty
+plotly
+
