@@ -284,7 +284,16 @@ def main_app_ui():
         diastolic_bp = float(diastolic_bp)
         bmi = float(bmi)
 
-        risk, doctors, advice, overall_health = check_risks(glucose, bmi, systolic_bp, diastolic_bp, extracted_data, age, sex)
+        risk, doctors, advice, overall_health = check_risks(
+            glucose=glucose,
+            hb=hemoglobin,
+            bmi=bmi,
+            systolic_bp=systolic_bp,
+            diastolic_bp=diastolic_bp,
+            labs=extracted_data,
+            age=age,
+            sex=sex
+        )
 
         st.subheader("Results Summary")
         st.write(f"**Overall Health:** {overall_health}")
@@ -339,6 +348,7 @@ if st.session_state.page == "login" or not st.session_state.logged_in:
     registration_ui()
 elif st.session_state.page == "main":
     main_app_ui()
+
 
 
 
