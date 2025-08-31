@@ -1,3 +1,5 @@
+page_title = "Doctor Buddy"
+
 [server]
 headless = true
 
@@ -9,4 +11,5 @@ serverAddress = "doctor-buddy.streamlit.app"
 serverPort = 8501
 
 [general]
-appThumbnail = "images/thumbnail.png"
+page_image = "https://raw.githubusercontent.com/Riiocodee/doctor-buddy/main/images-thumbnail.png.jpg"
+
