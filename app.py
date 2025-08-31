@@ -1,8 +1,7 @@
 import os
-
-# --- Set Java path for Tabula ---
-os.environ['JAVA_HOME'] = r"C:\Program Files\Java\jdk-23.0.2"  # <-- your Java folder
-os.environ['PATH'] += r";C:\Program Files\Java\jdk-23.0.2\bin"  # <-- bin folder
+# Replace with your Java installation path if different
+os.environ["JAVA_HOME"] = r"C:\Program Files\Java\jdk-23.0.2"
+os.environ["PATH"] += os.pathsep + os.path.join(os.environ["JAVA_HOME"], "bin")
 import streamlit as st
 import pandas as pd
 import json
@@ -311,5 +310,6 @@ if st.session_state.page == "login" or not st.session_state.logged_in:
     registration_ui()
 elif st.session_state.page == "main":
     main_app_ui()
+
 
 
