@@ -132,49 +132,76 @@ def registration_ui():
 
     
 
-# --- OCR & File Parsing ---
+# --- Unified File Parser + Lab Extraction ---
 def extract_text(file):
+    """Extract raw text from PDF, CSV, or image."""
+    text = ""
     try:
         if file.type in ["image/jpeg", "image/png"]:
             img = Image.open(file)
-            return pytesseract.image_to_string(img)
+            # OCR with Tesseract
+            text = pytesseract.image_to_string(img, config="--psm 6")
+        
         elif file.type == "application/pdf":
-            # save temp file for tabula
+            # Save temp file for Tabula
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
                 tmp_file.write(file.getbuffer())
                 tmp_path = tmp_file.name
 
+            # Read all tables from PDF
             dfs = tabula.read_pdf(tmp_path, pages="all", multiple_tables=True)
             os.remove(tmp_path)
+            
             if dfs:
-                return "\n".join([df.to_string(index=False) for df in dfs])
-            return ""
+                # Combine all tables into text
+                for df in dfs:
+                    text += df.to_csv(index=False) + "\n"
+            else:
+                text += ""  # fallback
+
         elif file.type == "text/csv":
             df = pd.read_csv(file)
-            return df.to_csv(index=False)
+            text += df.to_csv(index=False)
+            
     except Exception as e:
-        return f"Failed to parse {file.name}: {e}"
-    return ""
-
+        st.warning(f"Failed to parse {file.name}: {e}")
+    
+    return text
 
 def parse_lab_values(text):
+    """Extract lab values from raw text using regex."""
     lab_data = {}
+
+    # Flexible patterns for common lab names
     patterns = {
         "Glucose": r"(?:Glucose|GLU)\s*[:=]?\s*([0-9.]+)",
-        "Hemoglobin": r"(?:Hemoglobin|Hb)\s*[:=]?\s*([0-9.]+)",
-        "Systolic_BP": r"Systolic\s*[:=]?\s*([0-9]+)",
-        "Diastolic_BP": r"Diastolic\s*[:=]?\s*([0-9]+)",
-        "TSH": r"(?:TSH|Thyroid)\s*[:=]?\s*([0-9.]+)",        # Thyroid
-        "ALT": r"(?:ALT|SGPT)\s*[:=]?\s*([0-9.]+)",          # Liver
-        "AST": r"(?:AST|SGOT)\s*[:=]?\s*([0-9.]+)",          # Liver
-        "Creatinine": r"(?:Creatinine|CREA)\s*[:=]?\s*([0-9.]+)",  # Kidney
-        "Urea": r"(?:Urea|BUN)\s*[:=]?\s*([0-9.]+)"                # Kidney
+        "Hemoglobin": r"(?:Hemoglobin|Hb|H B)\s*[:=]?\s*([0-9.]+)",
+        "Systolic_BP": r"(?:Systolic|Sys\.?)\s*[:=]?\s*([0-9]+)",
+        "Diastolic_BP": r"(?:Diastolic|Dia\.?)\s*[:=]?\s*([0-9]+)",
+        "TSH": r"(?:TSH|Thyroid)\s*[:=]?\s*([0-9.]+)",
+        "ALT": r"(?:ALT|SGPT)\s*[:=]?\s*([0-9.]+)",
+        "AST": r"(?:AST|SGOT)\s*[:=]?\s*([0-9.]+)",
+        "Creatinine": r"(?:Creatinine|CREA)\s*[:=]?\s*([0-9.]+)",
+        "Urea": r"(?:Urea|BUN)\s*[:=]?\s*([0-9.]+)"
     }
+
+    # Iterate over patterns and extract numbers
     for key, pattern in patterns.items():
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
-            lab_data[key] = float(match.group(1))
+            try:
+                lab_data[key] = float(match.group(1))
+            except ValueError:
+                continue
+
     return lab_data
+
+# --- Example usage in Streamlit ---
+uploaded_files = st.file_uploader(
+    "Upload lab reports (PDF, JPG, PNG, CSV)", 
+    type=["pdf", "jpg", "jpeg", "png", "csv"], 
+    accept_multiple_files=True
+)
 
 
 # --- Risk checker ---
@@ -247,19 +274,27 @@ def main_app_ui():
     weight = st.number_input("Weight (kg)", value=weight)
     height_cm = st.number_input("Height (cm)", value=height_cm)
     
+# --- File Upload ---
+st.subheader("📄 Upload Lab Reports / CSV / PDF / Images")
+uploaded_files = st.file_uploader(
+    "Choose files", type=['pdf', 'png', 'jpg', 'jpeg', 'csv'], accept_multiple_files=True
+)
 
-    # --- File upload ---
-    st.subheader("📄 Upload Lab Reports / CSV / PDF / Images")
-    uploaded_files = st.file_uploader("Choose files", type=['pdf', 'png', 'jpg', 'jpeg', 'csv'], accept_multiple_files=True)
-    extracted_data = {}
-    if uploaded_files:
-        extracted_data = {}
-        for file in uploaded_files:
-            text = extract_text(file)
-            data = parse_lab_values(text)
-            extracted_data.update(data)
+if uploaded_files:
+    extracted_data = {}  # store all lab values from uploaded files
 
-        st.success("✅ Data extracted from files!")
+    for file in uploaded_files:
+        text = extract_text(file)        # <-- extract raw text from the file
+        data = parse_lab_values(text)    # <-- parse lab values from text
+        extracted_data.update(data)      # <-- accumulate all lab values
+
+    # --- Display extracted lab values ---
+    if extracted_data:
+        st.subheader("📄 Extracted Lab Values")
+        df = pd.DataFrame(list(extracted_data.items()), columns=["Lab Test", "Value"])
+        st.dataframe(df)
+    else:
+        st.info("No lab values extracted from the uploaded files.")
        
         # Override manual entries if extracted from uploaded files
         glucose = extracted_data.get("Glucose", glucose)
@@ -274,13 +309,13 @@ def main_app_ui():
         creatinine = extracted_data.get("Creatinine", None)
         urea = extracted_data.get("Urea", None)
 
-    # Display all extracted labs neatly
+    '''  # Display all extracted labs neatly
     st.subheader("📄 Extracted Lab Values")
     if extracted_data:
       lab_df = pd.DataFrame(list(extracted_data.items()), columns=["Lab Test", "Value"])
       st.dataframe(lab_df)
     else:
-      st.info("No lab values extracted yet.")
+      st.info("No lab values extracted yet.")'''
 
     # --- Calculate BMI ---
     bmi = round(weight / ((height_cm / 100) ** 2), 2)
@@ -348,4 +383,3 @@ if st.session_state.page == "login" or not st.session_state.logged_in:
     registration_ui()
 elif st.session_state.page == "main":
     main_app_ui()
-
