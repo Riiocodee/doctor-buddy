@@ -10,7 +10,7 @@ from PIL import Image
 import pytesseract
 import re
 import tempfile
-import os
+import tabula
 from pathlib import Path
 
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
@@ -311,4 +311,5 @@ if st.session_state.page == "login" or not st.session_state.logged_in:
     registration_ui()
 elif st.session_state.page == "main":
     main_app_ui()
+
 
