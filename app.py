@@ -13,7 +13,6 @@ import re
 import tempfile
 from pathlib import Path
 
-
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 
@@ -45,7 +44,7 @@ def extract_text_from_pdf(pdf_path):
             pages = convert_from_path(tmp_path, poppler_path=r"C:\poppler\Library\bin")  # <- here
             
             for page in pages:
-                text += pytesseract.image_to_string(page, config="--psm 6") + "\n"
+                text += pytesseract.image_to_string(image, config="--psm 6 -l eng") + "\n"
 
             os.remove(tmp_path)
         except Exception as ocr_e:
@@ -189,15 +188,33 @@ def extract_text(file):
 def parse_lab_values(text):
     lab_data = {}
     patterns = {
-        "Glucose": r"(?:Glucose|GLU)\s*[:=]?\s*([0-9.]+)",
-        "Hemoglobin": r"(?:Hemoglobin|Hb|H B)\s*[:=]?\s*([0-9.]+)",
-        "Systolic_BP": r"(?:Systolic|Sys\.?)\s*[:=]?\s*([0-9]+)",
-        "Diastolic_BP": r"(?:Diastolic|Dia\.?)\s*[:=]?\s*([0-9]+)",
-        "TSH": r"(?:TSH|Thyroid)\s*[:=]?\s*([0-9.]+)",
-        "ALT": r"(?:ALT|SGPT)\s*[:=]?\s*([0-9.]+)",
-        "AST": r"(?:AST|SGOT)\s*[:=]?\s*([0-9.]+)",
-        "Creatinine": r"(?:Creatinine|CREA)\s*[:=]?\s*([0-9.]+)",
-        "Urea": r"(?:Urea|BUN)\s*[:=]?\s*([0-9.]+)"
+    "Glucose": r"(?:Glucose|GLU)\s*[:=]?\s*([\d.]+)",
+    "Hemoglobin": r"(?:Hemoglobin|Hb|H B)\s*[:=]?\s*([\d.]+)",
+    "Systolic_BP": r"(?:Systolic|Sys\.?)\s*[:=]?\s*([\d]+)",
+    "Diastolic_BP": r"(?:Diastolic|Dia\.?)\s*[:=]?\s*([\d]+)",
+    "TSH": r"(?:TSH|Thyroid)\s*[:=]?\s*([\d.]+)",
+    "ALT": r"(?:ALT|SGPT)\s*[:=]?\s*([\d.]+)",
+    "AST": r"(?:AST|SGOT)\s*[:=]?\s*([\d.]+)",
+    "Creatinine": r"(?:Creatinine|CREA)\s*[:=]?\s*([\d.]+)",
+    "Urea": r"(?:Urea|BUN)\s*[:=]?\s*([\d.]+)",
+       # Blood counts
+    "WBC": r"WBC(?: count)?\s*[:=]?\s*([\d.]+)",
+    "RBC": r"RBC(?: count)?\s*[:=]?\s*([\d.]+)",
+    "Platelets": r"(?:PLT|Platelets?)\s*[:=]?\s*([\d.]+)",
+    "MCV": r"MCV\s*[:=]?\s*([\d.]+)",
+    "MCH": r"MCH\s*[:=]?\s*([\d.]+)",
+    "MCHC": r"MCHC\s*[:=]?\s*([\d.]+)",
+
+    # Electrolytes
+    "Sodium": r"(?:Sodium|Na[\+\s]*)\s*[:=]?\s*([\d.]+)",
+    "Potassium": r"(?:Potassium|K[\+\s]*)\s*[:=]?\s*([\d.]+)",
+    "Chloride": r"(?:Chloride|Cl[\-\s]*)\s*[:=]?\s*([\d.]+)",
+
+    # Lipid Profile
+    "Total Cholesterol": r"(?:Total\s*)?Cholesterol\s*[:=]?\s*([\d.]+)",
+    "LDL": r"LDL\s*[:=]?\s*([\d.]+)",
+    "HDL": r"HDL\s*[:=]?\s*([\d.]+)",
+    "Triglycerides": r"Triglycerides\s*[:=]?\s*([\d.]+)",
     }
     for key, pattern in patterns.items():
         match = re.search(pattern, text, re.IGNORECASE)
@@ -403,4 +420,3 @@ if st.session_state.page == "login" or not st.session_state.logged_in:
     registration_ui()
 elif st.session_state.page == "main":
     main_app_ui()
-
