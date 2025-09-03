@@ -287,8 +287,14 @@ def check_risks(glucose, hb, bmi, systolic_bp, diastolic_bp, labs, age=25, sex="
             risk.append("Low Hemoglobin")
             advice_list.append("Iron-rich diet & check for anemia .")
             doctors.add("Hematologist")
+ 
+    if len(risk) == 0:
+        overall_health = "Excellent Health"
+    elif 1 <= len(risk) <= 2:
+        overall_health = "Please monitor your health"
+    else:
+        overall_health = "Needs medical attention"
 
-    overall_health = "Excellent" if not risk else "Good Health"
     return risk, doctors, advice_list, overall_health
 
 # --- Main App ---
