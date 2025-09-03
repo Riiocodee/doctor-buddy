@@ -87,14 +87,6 @@ def save_json(path, data):
 users = load_json(user_file, {})
 patient_records = load_json(data_file, {})
 
-'''# --- Normalize old users ---
-for k, v in list(users.items()):
-    if isinstance(v, str):
-        users[k] = {"name": k, "password": v}
-    elif isinstance(v, dict):
-        if "name" not in v or not v["name"]:
-            users[k]["name"] = k'''
-
 save_json(user_file, users)
 save_json(data_file, patient_records)
 
@@ -566,3 +558,4 @@ elif st.session_state.page == "main":
     main_app_ui()
 elif st.session_state.page == "profile":
     profile_ui()
+
