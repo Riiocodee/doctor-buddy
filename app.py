@@ -257,7 +257,7 @@ def extract_text(file):
                 tmp_path = tmp_file.name
 
             # Extract text using new function
-                text = extract_text_from_pdf(tmp_path)
+            text = extract_text_from_pdf(tmp_path)
             os.remove(tmp_path)
         elif file.type == "text/csv":
             df = pd.read_csv(file)
@@ -558,4 +558,5 @@ elif st.session_state.page == "main":
     main_app_ui()
 elif st.session_state.page == "profile":
     profile_ui()
+
 
