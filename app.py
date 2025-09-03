@@ -1,8 +1,9 @@
 import os
-
+import bcrypt
+import datetime
 os.environ["JAVA_HOME"] = r"C:\Program Files\Java\jdk-23"
 os.environ["PATH"] = os.environ["JAVA_HOME"] + r"\bin;" + os.environ["PATH"]
-
+from pdf2image import convert_from_bytes
 import tabula
 import streamlit as st
 import pandas as pd
@@ -15,46 +16,54 @@ from pathlib import Path
 
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
+POPPLER_PATH = os.getenv("POPPLER_PATH", r"C:\All programs\poppler-25.07.0\Library\bin")
+
+# Alternatively in Streamlit:
+user_poppler_path = st.text_input("Poppler Path", value=POPPLER_PATH)
+POPPLER_PATH = user_poppler_path.strip() or POPPLER_PATH
+
+
+def hash_password(plain_text_password):
+    return bcrypt.hashpw(plain_text_password.encode(), bcrypt.gensalt()).decode()
+
+def check_password(plain_text_password, hashed_password):
+    try:
+        return bcrypt.checkpw(plain_text_password.encode(), hashed_password.encode())
+    except Exception:
+        return False
+
 
 def extract_text_from_pdf(pdf_path):
-    """
-    Try extracting tables with Tabula first.
-    If no tables found, fallback to OCR using pytesseract.
-    """
     text = ""
-
+    tmp_path = None
     try:
-        # Try Tabula (text-based PDF)
         dfs = tabula.read_pdf(pdf_path, pages="all", multiple_tables=True, lattice=True)
         if dfs and any(not df.empty for df in dfs):
             for df in dfs:
                 text += df.to_csv(index=False) + "\n"
         else:
-            print("⚠️ No tables found via Tabula, trying OCR...")
             raise ValueError("No tables detected")
-    except Exception as e:
-        # Fallback to OCR (image-based PDF)
+    except Exception:
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
                 tmp_file.write(open(pdf_path, "rb").read())
                 tmp_path = tmp_file.name
 
-            # Convert each PDF page to image
-            from pdf2image import convert_from_path
-            pages = convert_from_path(tmp_path, poppler_path=r"C:\poppler\Library\bin")  # <- here
-            
+            pages = convert_from_bytes(open(pdf_path, 'rb').read(), poppler_path=POPPLER_PATH)
             for page in pages:
-                text += pytesseract.image_to_string(image, config="--psm 6 -l eng") + "\n"
-
-            os.remove(tmp_path)
+                text += pytesseract.image_to_string(page, config="--psm 6 -l eng") + "\n"
         except Exception as ocr_e:
             print(f"❌ OCR failed: {ocr_e}")
-
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.remove(tmp_path)
     return text
 
 
+
+
 # --- Paths ---
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path.cwd()
 user_file = BASE_DIR / "users.json"
 data_file = BASE_DIR / "patient_data.json"
 
@@ -78,13 +87,13 @@ def save_json(path, data):
 users = load_json(user_file, {})
 patient_records = load_json(data_file, {})
 
-# --- Normalize old users ---
+'''# --- Normalize old users ---
 for k, v in list(users.items()):
     if isinstance(v, str):
         users[k] = {"name": k, "password": v}
     elif isinstance(v, dict):
         if "name" not in v or not v["name"]:
-            users[k]["name"] = k
+            users[k]["name"] = k'''
 
 save_json(user_file, users)
 save_json(data_file, patient_records)
@@ -100,9 +109,9 @@ if "page" not in st.session_state:
     st.session_state.page = "login"
 
 # --- Ensure user records ---
-def ensure_user_records(user_name):
-    if user_name and user_name not in patient_records:
-        patient_records[user_name] = []
+def ensure_user_records(user_email):
+    if user_email and user_email not in patient_records:
+        patient_records[user_email] = []
         save_json(data_file, patient_records)
 
 # --- Login ---
@@ -111,19 +120,27 @@ def login_ui():
     email_phone = st.text_input("📧 Email or 📱 Phone")
     password = st.text_input("🔑 Password", type="password")
     if st.button("Login"):
-        if email_phone in users:
-            user_data = users[email_phone]
-            if user_data["password"] == password:
-                st.session_state.logged_in = True
-                st.session_state.current_user = user_data["name"]
-                st.session_state.current_user_email = email_phone
-                ensure_user_records(st.session_state.current_user)
-                st.success(f"✅ Login successful! Welcome {st.session_state.current_user}")
-                st.session_state["page"] = "main"
-            else:
-                st.error("❌ Invalid password")
+        if not email_phone.strip():
+            st.error("Please enter your email or phone.")
+        elif not password:
+            st.error("Please enter your password.")
         else:
-            st.error("❌ User not found")
+            if email_phone in users:
+                user_data = users[email_phone]
+                if check_password(password, user_data["password"]):
+
+                    st.session_state.logged_in = True
+                    st.session_state.current_user = user_data["name"]
+                    st.session_state.current_user_email = email_phone
+                    ensure_user_records(st.session_state.current_user_email)
+                    st.success(f"✅ Login successful! Welcome {st.session_state.current_user}")
+                    st.session_state["page"] = "main"
+                else:
+                    st.error("❌ Invalid password")
+            else:
+                st.error("❌ User not found")
+
+
 
 # --- Registration ---
 def registration_ui():
@@ -140,23 +157,96 @@ def registration_ui():
         submitted = st.form_submit_button("Register")
 
         if submitted:
-            if new_email_phone in users:
+            if not new_email_phone.strip():
+                st.warning("⚠️ Please enter an email or phone.")
+            elif not new_name.strip():
+                st.warning("⚠️ Please enter your full name.")
+            elif not new_password:
+                st.warning("⚠️ Please enter a password.")
+            elif new_email_phone in users:
                 st.warning("⚠️ User already exists. Try logging in.")
             else:
-                users[new_email_phone] = {"name": new_name, "password": new_password}
+                # Save new user credentials
+                users[new_email_phone] = {
+                     "name": new_name,
+                     "password": hash_password(new_password)
+                   }
                 save_json(user_file, users)
-                patient_records[new_name] = [{
+
+                # Save initial patient record with demographic info
+                patient_records[new_email_phone] = [{
                     "age": new_age,
                     "sex": new_sex,
                     "weight": new_weight,
                     "height_cm": new_height
                 }]
                 save_json(data_file, patient_records)
+
+                # Set session state to logged in
                 st.session_state.logged_in = True
                 st.session_state.current_user = new_name
                 st.session_state.current_user_email = new_email_phone
+
                 st.success(f"✅ Registered and logged in! Welcome {new_name}")
                 st.session_state["page"] = "main"
+
+# Add a new page for profile editing
+def profile_ui():
+    st.title("👤 Edit Profile")
+    user_email = st.session_state.current_user_email
+    patient_data = patient_records.get(user_email, [{}])[0]
+    user_data = users.get(user_email, {})
+    
+    with st.form("profile_form"):
+        new_name = st.text_input("Full Name", value=user_data.get("name", ""))
+        new_age = st.number_input("Age", min_value=1, max_value=120, value=patient_data.get("age", 25))
+        new_sex = st.selectbox("Sex", ["Male", "Female"], index=0 if patient_data.get("sex", "Male") == "Male" else 1)
+        new_weight = st.number_input("Weight (kg)", min_value=1.0, max_value=300.0, value=patient_data.get("weight", 70.0))
+        new_height = st.number_input("Height (cm)", min_value=50.0, max_value=250.0, value=patient_data.get("height_cm", 170.0))
+
+        st.write("**Change Password:**")
+        old_password = st.text_input("Current Password", type="password")
+        new_password = st.text_input("New Password", type="password")
+        confirm_password = st.text_input("Confirm New Password", type="password")
+
+        submitted = st.form_submit_button("Save Changes")
+
+        if submitted:
+            # Verify old password if changing password
+            if new_password or confirm_password:
+                if not old_password:
+                    st.error("Please enter your current password to change password.")
+                    return
+                if not check_password(old_password, user_data.get("password", "")):
+                    st.error("Current password is incorrect.")
+                    return
+                if new_password != confirm_password:
+                    st.error("New password and confirm password do not match.")
+                    return
+                # Update password hash
+                users[user_email]["password"] = hash_password(new_password)
+
+            # Update name and patient records
+            old_name = user_data.get("name", "")
+            if new_name and new_name != old_name:
+                # Update users dict key if name changes
+                users[user_email]["name"] = new_name
+                # Update name only
+                if new_name and new_name != old_name:
+                    users[user_email]["name"] = new_name
+                    st.session_state.current_user = new_name
+
+            # Update demographic info
+            patient_records[user_email][0] = {
+                "age": new_age,
+                "sex": new_sex,
+                "weight": new_weight,
+                "height_cm": new_height
+            }
+
+            save_json(user_file, users)
+            save_json(data_file, patient_records)
+            st.success("Profile updated successfully!")
 
 def extract_text(file):
     """
@@ -175,10 +265,9 @@ def extract_text(file):
                 tmp_path = tmp_file.name
 
             # Extract text using new function
-            text = extract_text_from_pdf(tmp_path)
+                text = extract_text_from_pdf(tmp_path)
             os.remove(tmp_path)
         elif file.type == "text/csv":
-            import pandas as pd
             df = pd.read_csv(file)
             text += df.to_csv(index=False)
     except Exception as e:
@@ -329,27 +418,48 @@ def main_app_ui():
         "Choose files", type=['pdf', 'png', 'jpg', 'jpeg', 'csv'], accept_multiple_files=True
     )
 
-    extracted_data = {}
+    extracted_data_per_file = {}
+
     if uploaded_files:
         for file in uploaded_files:
             raw_text = extract_text(file)
             lab_values = parse_lab_values(raw_text)
-            extracted_data.update(lab_values)
+            extracted_data_per_file[file.name] = lab_values
 
-        if extracted_data:
-            st.subheader("📄 Extracted Lab Values")
-            df = pd.DataFrame(list(extracted_data.items()), columns=["Lab Test", "Value"])
-            st.dataframe(df)
+             # ✅ Debug: Show raw extracted text
+            with st.expander(f"🧾 Show Raw Text for {file.name}"):
+                st.text(raw_text)
 
-            glucose = extracted_data.get("Glucose", glucose)
-            hemoglobin = extracted_data.get("Hemoglobin", hemoglobin)
-            systolic_bp = extracted_data.get("Systolic_BP", systolic_bp)
-            diastolic_bp = extracted_data.get("Diastolic_BP", diastolic_bp)
+    if extracted_data_per_file:
+        st.subheader("📄 Extracted Lab Values by File")
+        for fname, labs in extracted_data_per_file.items():
+            st.markdown(f"**File:** {fname}")
+            if labs:
+                df = pd.DataFrame(list(labs.items()), columns=["Lab Test", "Value"])
+                st.dataframe(df)
+            else:
+                st.write("_No lab values detected._")
+            st.write("---")
+
+    # Merge all lab values as before to extracted_data dict
+    extracted_data = {}
+    for labs in extracted_data_per_file.values():
+        for k, v in labs.items():
+            if v is not None:
+                if k not in extracted_data or v > extracted_data[k]:
+                    extracted_data[k] = v
+
+
+
+        glucose = extracted_data.get("Glucose", glucose)
+        hemoglobin = extracted_data.get("Hemoglobin", hemoglobin)
+        systolic_bp = extracted_data.get("Systolic_BP", systolic_bp)
+        diastolic_bp = extracted_data.get("Diastolic_BP", diastolic_bp)
             
-            extracted_data["Glucose"] = glucose
-            extracted_data["Hemoglobin"] = hemoglobin
-            extracted_data["Systolic_BP"] = systolic_bp
-            extracted_data["Diastolic_BP"] = diastolic_bp
+        extracted_data["Glucose"] = glucose
+        extracted_data["Hemoglobin"] = hemoglobin
+        extracted_data["Systolic_BP"] = systolic_bp
+        extracted_data["Diastolic_BP"] = diastolic_bp
    
     bmi = round(weight / ((height_cm / 100) ** 2), 2)
     st.write(f"**BMI:** {bmi}")
@@ -380,6 +490,7 @@ def main_app_ui():
         if advice: st.write("Advice:", advice)
 
         record = {
+            "timestamp": datetime.datetime.now().isoformat(),
             "age": age,
             "sex": sex,
             "weight": weight,
@@ -398,11 +509,20 @@ def main_app_ui():
 
     past_records = patient_records.get(st.session_state.current_user, [])
     if past_records:
-        st.subheader("📋 Your Past Records")
-        df = pd.DataFrame(past_records)
-        st.dataframe(df)
+     st.subheader("📋 Your Past Records")
+     df = pd.DataFrame(past_records)
+     st.dataframe(df)
+
+     csv_data = df.to_csv(index=False).encode("utf-8")
+     st.download_button(
+        label="📥 Download Records as CSV",
+        data=csv_data,
+        file_name="my_health_records.csv",
+        mime="text/csv",
+    )
     else:
-        st.info("No past records found.")
+     st.info("No past records found.")
+
 
     st.subheader("💡 Healthy Lifestyle Tips")
     st.markdown("""
@@ -420,9 +540,29 @@ def main_app_ui():
         st.session_state.current_user_email = None
         st.experimental_rerun()
 
+
+ # --- Sidebar Navigation ---
+if st.session_state.logged_in:
+    st.sidebar.title("🔧 Navigation")
+    choice = st.sidebar.radio("Go to", ["🏠 Home", "👤 Profile", "🚪 Logout"])
+
+    if choice == "🏠 Home":
+        st.session_state.page = "main"
+    elif choice == "👤 Profile":
+        st.session_state.page = "profile"
+    elif choice == "🚪 Logout":
+        st.session_state.logged_in = False
+        st.session_state.current_user = None
+        st.session_state.current_user_email = None
+        st.session_state.page = "login"
+        st.experimental_rerun()
+
+    
 # --- Page Routing ---
-if st.session_state.page == "login" or not st.session_state.logged_in:
+if not st.session_state.logged_in or st.session_state.page == "login":
     login_ui()
     registration_ui()
 elif st.session_state.page == "main":
     main_app_ui()
+elif st.session_state.page == "profile":
+    profile_ui()
