@@ -1,8 +1,57 @@
-streamlit
-pandas
-Pillow
-pytesseract
-tabula-py
-regex
-plotly
+# Streamlit & UI
+streamlit==1.49.1
+altair==5.5.0
+plotly==6.3.0
+rich==14.1.0
+markdown-it-py==4.0.0
+mdurl==0.1.2
+pygments==2.19.2
 
+# Data handling
+pandas==2.3.2
+numpy==2.3.2
+python-dateutil==2.9.0.post0
+pytz==2025.2
+
+# === Parsing & Regex ===
+regex==2025.8.29            # Enhanced regex parsing
+
+
+# === OCR & PDF Handling ===
+pytesseract==0.3.13         # OCR from images/PDF
+pillow==11.3.0              # Required for image handling
+tabula-py==2.10.0           # Extract tables from PDFs using Java
+
+# HTTP & APIs
+requests==2.32.5
+
+# Misc / dependencies
+attrs==25.3.0
+blinker==1.9.0
+cachetools==6.2.0
+certifi==2025.8.3
+click==8.1.8
+distro==1.9.0
+gitdb==4.0.12
+gitpython==3.1.45
+idna==3.10
+jinja2==3.1.6
+jsonschema==4.25.1
+jsonschema-specifications==2025.4.1
+markupsafe==3.0.2
+narwhals==2.2.0
+tenacity==9.1.2
+toml==0.10.2
+tornado==6.5.2
+typing-extensions==4.15.0
+tzdata==2025.2
+urllib3==2.5.0
+watchdog==6.0.0
+
+# === JSON, Forms, and Backend ===
+bcrypt==4.1.3               # For password hashing
+jinja2==3.1.6               # Used indirectly by Streamlit
+typing-extensions==4.15.0   # Type hints (Python < 3.12 compatibility)
+
+# === Optional for File Uploads / Debugging ===
+watchdog==6.0.0             # File change detection (optional)
