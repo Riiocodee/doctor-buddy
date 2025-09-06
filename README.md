@@ -77,6 +77,7 @@ https://Doctor_Buddy.streamlit.app
  ┣ 📜 patient_data.json   # Patient health records (auto-created)
  ┣ 📜 requirements.txt    # Python dependencies
  ┗ 📜 README.md           # Project documentation
+ ┗ 📜 manifest.json       # Add PWA and image icons 
 ```
 
 ---
