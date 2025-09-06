@@ -8,7 +8,7 @@
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 
 🚀 A simple yet powerful **Streamlit app** to monitor health metrics, assess risks, and get personalized advice.  
-                     (Under development)
+                                                        (The app is under development....Coming Soon.....)
 
 </div>
 
